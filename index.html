@@ -71,14 +71,14 @@
         const randuriPePagina = 50;
         let textCautare = "";
 
-        // Adresa către fișierul real din GitHub LFS Media Raw
-        const urlBDD = 'https://media.githubusercontent.com/media/wdavidmnt/dictionar-chinez-roman/main/dictionar_bdd.db';
+        // Link prin jsDelivr CDN (rezolvă problema de CORS pentru fișiere LFS)
+        const urlBDD = 'https://cdn.jsdelivr.net/gh/wdavidmnt/dictionar-chinez-roman@main/dictionar_bdd.db';
 
         initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` }).then(SQL => {
             fetch(urlBDD)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error("Nu am putut descărca baza de date. Verifică numele ramurii (main/master) sau numele fișierului.");
+                        throw new Error("Nu am putut descărca baza de date. Status HTTP: " + response.status);
                     }
                     return response.arrayBuffer();
                 })
