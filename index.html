@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dicționar Chinez - Român</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; background-color: #f8fafc; color: #334155; }
+        h1 { color: #0f172a; text-align: center; }
+        .search-box { width: 100%; padding: 12px 16px; font-size: 18px; border: 2px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; margin-bottom: 20px; }
+        .search-box:focus { outline: none; border-color: #2563eb; }
+        .card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .hanzi { font-size: 24px; font-weight: bold; color: #1e293b; }
+        .pinyin { color: #2563eb; font-weight: 500; }
+        .meaning { color: #475569; margin-top: 4px; }
+        .btn-contrib { background-color: #22c55e; color: white; padding: 6px 12px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500; }
+        .btn-contrib:hover { background-color: #16a34a; }
+        #loading { text-align: center; color: #64748b; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h1>Dicționar Chinez - Român</h1>
+    <p style="text-align: center;">Proiect Open-Source colaborativ</p>
+
+    <input type="text" id="search" class="search-box" placeholder="Caută caractere, Pinyin sau română/engleză..." disabled>
+    <div id="loading"> Se încarcă baza de date...</div>
+    <div id="results"></div>
+
+    <!-- Script SQLite în browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script>
+        let db = null;
+
+        // Încărcăm baza de date SQLite direct în browser
+        initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` }).then(SQL => {
+            fetch('dictionar.db')
+                .then(response => response.arrayBuffer())
+                .then(buffer => {
+                    db = new SQL.Database(new Uint8Array(buffer));
+                    document.getElementById('loading').style.display = 'none';
+                    const searchInput = document.getElementById('search');
+                    searchInput.disabled = false;
+                    searchInput.placeholder = "Tastați pentru a căuta...";
+                    searchInput.focus();
+                });
+        });
+
+        
+        document.getElementById('search').addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            if (query.length < 1 || !db) return;
+
+            // Căutăm în baza de date
+            const stmt = db.prepare("SELECT Simplificat, Traditional, Pinyin, Engleza, Romana FROM dictionar WHERE Simplificat LIKE :q OR Pinyin LIKE :q OR Engleza LIKE :q OR Romana LIKE :q LIMIT 20");
+            stmt.bind({':q': '%' + query + '%'});
+
+            while (stmt.step()) {
+                const row = stmt.getAsObject();
+                const rom = row.Romana ? row.Romana : '<em>(Neadăugat)</em>';
+                
+                // Link către GitHub Issues pentru a propune o traducere pentru acest cuvânt specific
+                const issueUrl = `https://github.com/UTILIZATORUL-TAU/dictionar-chinez-roman/issues/new?title=Traducere+pentru+${encodeURIComponent(row.Simplificat)}&body=Cuvant:+${encodeURIComponent(row.Simplificat)}+(${encodeURIComponent(row.Pinyin)})%0AEngleza:+${encodeURIComponent(row.Engleza)}%0ATraducere+propusa+in+romana:`;
+
+                const html = `
+                    <div class="card">
+                        <div>
+                            <div><span class="hanzi">${row.Simplificat}</span> <small style="color:#94a3b8">(${row.Traditional})</small> — <span class="pinyin">${row.Pinyin}</span></div>
+                            <div class="meaning"><strong>RO:</strong> ${rom}</div>
+                            <div class="meaning" style="font-size: 13px; color: #64748b;"><strong>EN:</strong> ${row.Engleza}</div>
+                        </div>
+                        <div>
+                            <a href="${issueUrl}" target="_blank" class="btn-contrib">✏️ Contribuie</a>
+                        </div>
+                    </div>
+                `;
+                resultsDiv.innerHTML += html;
+            }
+            stmt.free();
+        });
+    </script>
+</body>
+</html>
