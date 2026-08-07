@@ -5,81 +5,149 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dicționar Chinez - Român</title>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; background-color: #f8fafc; color: #334155; }
-        h1 { color: #0f172a; text-align: center; }
-        .search-box { width: 100%; padding: 12px 16px; font-size: 18px; border: 2px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; margin-bottom: 20px; }
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 20px; background-color: #f8fafc; color: #334155; }
+        h1 { color: #0f172a; text-align: center; margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: #64748b; margin-bottom: 25px; }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 250px; padding: 12px 16px; font-size: 16px; border: 2px solid #cbd5e1; border-radius: 8px; }
         .search-box:focus { outline: none; border-color: #2563eb; }
-        .card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-        .hanzi { font-size: 24px; font-weight: bold; color: #1e293b; }
+        
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f1f5f9; font-weight: 600; color: #1e293b; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .hanzi { font-size: 20px; font-weight: bold; color: #0f172a; }
         .pinyin { color: #2563eb; font-weight: 500; }
-        .meaning { color: #475569; margin-top: 4px; }
-        .btn-contrib { background-color: #22c55e; color: white; padding: 6px 12px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500; }
-        .btn-contrib:hover { background-color: #16a34a; }
-        #loading { text-align: center; color: #64748b; font-style: italic; }
+        .badge { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        
+        .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+        .btn { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-contrib { background-color: #22c55e; color: white; padding: 4px 10px; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500; }
+        
+        #status-msg { text-align: center; padding: 20px; color: #64748b; font-weight: 500; }
     </style>
 </head>
 <body>
 
     <h1>Dicționar Chinez - Român</h1>
-    <p style="text-align: center;">Proiect Open-Source colaborativ</p>
+    <p class="subtitle">Baza de date</p>
 
-    <input type="text" id="search" class="search-box" placeholder="Caută caractere, Pinyin sau română/engleză..." disabled>
-    <div id="loading"> Se încarcă baza de date...</div>
-    <div id="results"></div>
+    <div class="controls">
+        <input type="text" id="search" class="search-box" placeholder="Caută în tabel (Caracter, Pinyin, Română, Engleză)..." disabled>
+    </div>
 
-    <!-- Script SQLite în browser -->
+    <div id="status-msg">Se încarcă baza de date...</div>
+
+    <div id="table-container" style="display: none;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Chineză</th>
+                    <th>Pinyin</th>
+                    <th>Română</th>
+                    <th>Engleză</th>
+                    <th>Status</th>
+                    <th>Acțiune</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button id="btn-prev" class="btn" onclick="schimbaPagina(-1)">Anterioarele</button>
+            <span id="page-info">Pagina 1</span>
+            <button id="btn-next" class="btn" onclick="schimbaPagina(1)">Următoarele</button>
+        </div>
+    </div>
+
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     <script>
         let db = null;
+        let paginaCurenta = 0;
+        const randuriPePagina = 50;
+        let textCautare = "";
 
-        // Încărcăm baza de date SQLite direct în browser
+        // Încărcare bază de date SQLite
         initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` }).then(SQL => {
             fetch('dictionar.db')
                 .then(response => response.arrayBuffer())
                 .then(buffer => {
                     db = new SQL.Database(new Uint8Array(buffer));
-                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('status-msg').style.display = 'none';
+                    document.getElementById('table-container').style.display = 'block';
+                    
                     const searchInput = document.getElementById('search');
                     searchInput.disabled = false;
-                    searchInput.placeholder = "Tastați pentru a căuta...";
-                    searchInput.focus();
+                    
+                    afiseazaTabel();
                 });
         });
 
-        
-        document.getElementById('search').addEventListener('input', function(e) {
-            const query = e.target.value.trim();
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = '';
+        function afiseazaTabel() {
+            if (!db) return;
 
-            if (query.length < 1 || !db) return;
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
 
-            // Căutăm în baza de date
-            const stmt = db.prepare("SELECT Simplificat, Traditional, Pinyin, Engleza, Romana FROM dictionar WHERE Simplificat LIKE :q OR Pinyin LIKE :q OR Engleza LIKE :q OR Romana LIKE :q LIMIT 20");
-            stmt.bind({':q': '%' + query + '%'});
+            const offset = paginaCurenta * randuriPePagina;
+            let query = "SELECT Simplificat, Traditional, Pinyin, Engleza, Romana, Status FROM dictionar";
+            let params = {};
 
+            if (textCautare !== "") {
+                query += " WHERE Simplificat LIKE :q OR Pinyin LIKE :q OR Engleza LIKE :q OR Romana LIKE :q";
+                params[':q'] = '%' + textCautare + '%';
+            }
+
+            query += ` LIMIT ${randuriPePagina} OFFSET ${offset}`;
+
+            const stmt = db.prepare(query);
+            stmt.bind(params);
+
+            let areRezultate = false;
             while (stmt.step()) {
+                areRezultate = true;
                 const row = stmt.getAsObject();
-                const rom = row.Romana ? row.Romana : '<em>(Neadăugat)</em>';
+                const rom = row.Romana ? row.Romana : '<em style="color:#94a3b8">Neadăugat</em>';
+                const st = row.Status ? row.Status : 'De tradus';
                 
-                // Link către GitHub Issues pentru a propune o traducere pentru acest cuvânt specific
-                const issueUrl = `https://github.com/UTILIZATORUL-TAU/dictionar-chinez-roman/issues/new?title=Traducere+pentru+${encodeURIComponent(row.Simplificat)}&body=Cuvant:+${encodeURIComponent(row.Simplificat)}+(${encodeURIComponent(row.Pinyin)})%0AEngleza:+${encodeURIComponent(row.Engleza)}%0ATraducere+propusa+in+romana:`;
+                
+                const issueUrl = `https://github.com/UTILIZATORUL-TAU/dictionar-chinez-roman/issues/new?title=Traducere+pentru+${encodeURIComponent(row.Simplificat)}&body=Cuvant:+${encodeURIComponent(row.Simplificat)}+(${encodeURIComponent(row.Pinyin)})%0AEngleza:+${encodeURIComponent(row.Engleza)}%0ATraducere+propusa:`;
 
-                const html = `
-                    <div class="card">
-                        <div>
-                            <div><span class="hanzi">${row.Simplificat}</span> <small style="color:#94a3b8">(${row.Traditional})</small> — <span class="pinyin">${row.Pinyin}</span></div>
-                            <div class="meaning"><strong>RO:</strong> ${rom}</div>
-                            <div class="meaning" style="font-size: 13px; color: #64748b;"><strong>EN:</strong> ${row.Engleza}</div>
-                        </div>
-                        <div>
-                            <a href="${issueUrl}" target="_blank" class="btn-contrib">✏️ Contribuie</a>
-                        </div>
-                    </div>
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="hanzi">${row.Simplificat}</span> <small style="color:#94a3b8">(${row.Traditional})</small></td>
+                    <td><span class="pinyin">${row.Pinyin}</span></td>
+                    <td><strong>${rom}</strong></td>
+                    <td style="font-size: 13px; color: #475569;">${row.Engleza}</td>
+                    <td><span class="badge">${st}</span></td>
+                    <td><a href="${issueUrl}" target="_blank" class="btn-contrib">✏️ Editează</a></td>
                 `;
-                resultsDiv.innerHTML += html;
+                tbody.appendChild(tr);
             }
             stmt.free();
+
+            // Actualizare controale paginare
+            document.getElementById('page-info').innerText = `Pagina ${paginaCurenta + 1}`;
+            document.getElementById('btn-prev').disabled = (paginaCurenta === 0);
+            document.getElementById('btn-next').disabled = !areRezultate;
+        }
+
+        function schimbaPagina(directie) {
+            paginaCurenta += directie;
+            if (paginaCurenta < 0) paginaCurenta = 0;
+            afiseazaTabel();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Căutare live
+        document.getElementById('search').addEventListener('input', function(e) {
+            textCautare = e.target.value.trim();
+            paginaCurenta = 0;
+            afiseazaTabel();
         });
     </script>
 </body>
