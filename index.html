@@ -63,6 +63,181 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script>
+        let db = null;
+        let numeTabela = "dictionar";
+        let paginaCurenta = 0;
+        const randuriPePagina = 50;
+        let textCautare = "";
+
+        // Încărcare bază de date SQLite (dictionar_bdd.db)
+        initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` }).then(SQL => {
+            fetch('dictionar_bdd.db')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Fișierul 'dictionar_bdd.db' nu a fost găsit pe GitHub!");
+                    }
+                    return response.arrayBuffer();
+                })
+                .then(buffer => {
+                    db = new SQL.Database(new Uint8Array(buffer));
+                    
+                    // Identifică automat numele primei tabele disponibile din baza de date
+                    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';");
+                    if (tables.length > 0 && tables[0].values.length > 0) {
+                        numeTabela = tables[0].values[0][0];
+                    }
+
+                    document.getElementById('status-msg').style.display = 'none';
+                    document.getElementById('table-container').style.display = 'block';
+                    
+                    const searchInput = document.getElementById('search');
+                    searchInput.disabled = false;
+                    
+                    afiseazaTabel();
+                })
+                .catch(err => {
+                    document.getElementById('status-msg').style.color = '#dc2626';
+                    document.getElementById('status-msg').innerText = "❌ EROARE: " + err.message;
+                });
+        });
+
+        function afiseazaTabel() {
+            if (!db) return;
+
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            const offset = paginaCurenta * randuriPePagina;
+            let query = `SELECT * FROM ${numeTabela}`;
+            let params = {};
+
+            if (textCautare !== "") {
+                query += " WHERE Simplificat LIKE :q OR Pinyin LIKE :q OR Engleza LIKE :q OR Romana LIKE :q";
+                params[':q'] = '%' + textCautare + '%';
+            }
+
+            query += ` LIMIT ${randuriPePagina} OFFSET ${offset}`;
+
+            try {
+                const stmt = db.prepare(query);
+                stmt.bind(params);
+
+                let areRezultate = false;
+                while (stmt.step()) {
+                    areRezultate = true;
+                    const row = stmt.getAsObject();
+                    
+                    const simp = row.Simplificat || row.simplificat || '';
+                    const trad = row.Traditional || row.traditional || '';
+                    const pin = row.Pinyin || row.pinyin || '';
+                    const eng = row.Engleza || row.engleza || '';
+                    const rom = row.Romana || row.romana || '<em style="color:#94a3b8">Neadăugat</em>';
+                    const st = row.Status || row.status || 'De tradus';
+
+                    const issueUrl = `https://github.com/wdavidmnt/dictionar-chinez-roman/issues/new?title=Traducere+pentru+${encodeURIComponent(simp)}&body=Cuvant:+${encodeURIComponent(simp)}+(${encodeURIComponent(pin)})%0AEngleza:+${encodeURIComponent(eng)}%0ATraducere+propusa:`;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><span class="hanzi">${simp}</span> <small style="color:#94a3b8">(${trad})</small></td>
+                        <td><span class="pinyin">${pin}</span></td>
+                        <td><strong>${rom}</strong></td>
+                        <td style="font-size: 13px; color: #475569;">${eng}</td>
+                        <td><span class="badge">${st}</span></td>
+                        <td><a href="${issueUrl}" target="_blank" class="btn-contrib"> Editează</a></td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+                stmt.free();
+
+                document.getElementById('page-info').innerText = `Pagina ${paginaCurenta + 1}`;
+                document.getElementById('btn-prev').disabled = (paginaCurenta === 0);
+                document.getElementById('btn-next').disabled = !areRezultate;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function schimbaPagina(directie) {
+            paginaCurenta += directie;
+            if (paginaCurenta < 0) paginaCurenta = 0;
+            afiseazaTabel();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.getElementById('search').addEventListener('input', function(e) {
+            textCautare = e.target.value.trim();
+            paginaCurenta = 0;
+            afiseazaTabel();
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dicționar Chinez - Român</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 20px; background-color: #f8fafc; color: #334155; }
+        h1 { color: #0f172a; text-align: center; margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: #64748b; margin-bottom: 25px; }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 250px; padding: 12px 16px; font-size: 16px; border: 2px solid #cbd5e1; border-radius: 8px; }
+        .search-box:focus { outline: none; border-color: #2563eb; }
+        
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f1f5f9; font-weight: 600; color: #1e293b; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .hanzi { font-size: 20px; font-weight: bold; color: #0f172a; }
+        .pinyin { color: #2563eb; font-weight: 500; }
+        .badge { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        
+        .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+        .btn { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-contrib { background-color: #22c55e; color: white; padding: 4px 10px; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500; }
+        
+        #status-msg { text-align: center; padding: 20px; color: #64748b; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+    <h1>Dicționar Chinez - Român</h1>
+    <p class="subtitle">Baza de date</p>
+
+    <div class="controls">
+        <input type="text" id="search" class="search-box" placeholder="Caută în tabel (Caracter, Pinyin, Română, Engleză)..." disabled>
+    </div>
+
+    <div id="status-msg">Se încarcă baza de date...</div>
+
+    <div id="table-container" style="display: none;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Chineză</th>
+                    <th>Pinyin</th>
+                    <th>Română</th>
+                    <th>Engleză</th>
+                    <th>Status</th>
+                    <th>Acțiune</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button id="btn-prev" class="btn" onclick="schimbaPagina(-1)">Anterioarele</button>
+            <span id="page-info">Pagina 1</span>
+            <button id="btn-next" class="btn" onclick="schimbaPagina(1)">Următoarele</button>
+        </div>
+    </div>
+
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     <script>
