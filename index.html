@@ -4,6 +4,501 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dicționar Chinez - Român</title>
+    
+    <!-- Tipografie elegantă -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Noto+Serif+SC:wght@500;700&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-paper: #F5EFEB;
+            --ink-black: #1A1718;
+            --ink-dark: #2D2728;
+            --ink-medium: #4A4243;
+            --vermilion-dark: #8B1E1E;
+            --vermilion-subtle: #A63232;
+            --gold-muted: #B89742;
+            --gold-light: #D4BC7B;
+            --text-primary: #2C2627;
+            --text-secondary: #5A5051;
+            --card-bg: rgba(248, 243, 236, 0.92);
+            --border-color: rgba(184, 151, 66, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Serif', 'Times New Roman', serif;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+            background-color: var(--bg-paper);
+        }
+
+        /* Peisaj vectorial static SVG ca fundal (Fără consum de RAM/GPU) */
+        .bg-landscape {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Containerul principal */
+        .app-container {
+            width: 100%;
+            max-width: 1020px;
+            margin: 40px auto 60px auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Antet */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 28px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(26, 23, 24, 0.12);
+            backdrop-filter: blur(6px);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            top: 5px; left: 5px; right: 5px; bottom: 5px;
+            border: 1px solid rgba(139, 30, 30, 0.18);
+            pointer-events: none;
+        }
+
+        h1 {
+            font-family: 'Cinzel', 'Noto Serif SC', serif;
+            font-size: 2.4rem;
+            color: var(--vermilion-dark);
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        p.subtitle {
+            font-style: italic;
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+        }
+
+        /* Zona de căutare */
+        .controls {
+            margin-bottom: 22px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.05rem;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1.5px solid var(--gold-muted);
+            color: var(--ink-black);
+            border-radius: 4px;
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .search-box:focus {
+            border-color: var(--vermilion-dark);
+            box-shadow: 0 0 10px rgba(139, 30, 30, 0.25);
+            background: #ffffff;
+        }
+
+        .search-box::placeholder {
+            color: #8C8081;
+            font-style: italic;
+        }
+
+        /* Mesaj de stare */
+        #status-msg {
+            text-align: center;
+            padding: 22px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 1.05rem;
+            font-style: italic;
+            border-radius: 4px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+        }
+
+        /* Tabelul cu rezultate */
+        .table-wrapper {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(6px);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: linear-gradient(180deg, #3A3132 0%, #231C1D 100%);
+            color: var(--gold-light);
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 15px 18px;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--gold-muted);
+        }
+
+        td {
+            padding: 15px 18px;
+            border-bottom: 1px solid rgba(184, 151, 66, 0.18);
+            vertical-align: middle;
+        }
+
+        tr:hover {
+            background-color: rgba(139, 30, 30, 0.04);
+        }
+
+        .hanzi {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--vermilion-dark);
+        }
+
+        .traditional {
+            color: #7C7071;
+            font-size: 0.9rem;
+            margin-left: 4px;
+        }
+
+        .pinyin {
+            color: var(--vermilion-subtle);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        /* Paginare */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: rgba(238, 230, 220, 0.85);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--vermilion-dark) 0%, #5C1313 100%);
+            color: #FAF4EB;
+            border: 1px solid var(--gold-muted);
+            padding: 9px 20px;
+            font-family: 'Cinzel', serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, var(--vermilion-subtle) 0%, var(--vermilion-dark) 100%);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: #B3A8A9;
+            border-color: #D1C7C8;
+            color: #E6DFDF;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        #page-info {
+            font-weight: 600;
+            color: var(--ink-black);
+            font-family: 'Cinzel', serif;
+        }
+
+        /* Badge sursă CC-CEDICT */
+        .source-badge {
+            position: fixed;
+            bottom: 14px;
+            right: 18px;
+            background: rgba(45, 39, 40, 0.88);
+            color: var(--gold-light);
+            border: 1px solid var(--gold-muted);
+            padding: 6px 14px;
+            font-size: 0.78rem;
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.5px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.9rem; }
+            th, td { padding: 12px 10px; font-size: 0.92rem; }
+            .hanzi { font-size: 1.35rem; }
+            .app-container { margin-top: 20px; }
+            .source-badge { font-size: 0.7rem; padding: 4px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SVG Static pentru Peisajul Shan Shui în Tuș (Zero consum RAM) -->
+    <svg class="bg-landscape" preserveAspectRatio="xMidYMax slice" viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg">
+        <!-- Cer / Gradient de Tuș Diluat -->
+        <defs>
+            <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#E8DFD8" />
+                <stop offset="40%" stop-color="#F2ECE6" />
+                <stop offset="70%" stop-color="#EBE2D8" />
+                <stop offset="100%" stop-color="#DCD0C4" />
+            </linearGradient>
+            
+            <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#D48152" stop-opacity="0.45" />
+                <stop offset="60%" stop-color="#B85C37" stop-opacity="0.15" />
+                <stop offset="100%" stop-color="#E8DFD8" stop-opacity="0" />
+            </radialGradient>
+
+            <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#C2B4A5" stop-opacity="0.6" />
+                <stop offset="100%" stop-color="#9E8E7E" stop-opacity="0.8" />
+            </linearGradient>
+        </defs>
+
+        <rect width="1400" height="900" fill="url(#skyGrad)"/>
+
+        <!-- Soare / Lună Subtilă în Apus -->
+        <circle cx="1100" cy="280" r="140" fill="url(#sunGlow)" />
+        <circle cx="1100" cy="280" r="42" fill="#B85C37" fill-opacity="0.25" />
+
+        <!-- Munți Îndepărtați (Tuș deschis) -->
+        <path d="M 0 520 Q 250 360, 500 480 T 1000 440 T 1400 500 L 1400 900 L 0 900 Z" fill="#A89A8C" fill-opacity="0.35"/>
+        <path d="M 200 540 Q 550 390, 850 510 T 1400 470 L 1400 900 L 200 900 Z" fill="#8C7D70" fill-opacity="0.4"/>
+
+        <!-- Apă / Ocean Static -->
+        <rect x="0" y="580" width="1400" height="320" fill="url(#waterGrad)" />
+
+        <!-- Linii Subtiri de Valuri -->
+        <path d="M 0 620 Q 350 610, 700 620 T 1400 620" stroke="#FAF4EB" stroke-width="1.2" stroke-opacity="0.3" fill="none"/>
+        <path d="M 0 660 Q 450 650, 900 660 T 1400 660" stroke="#FAF4EB" stroke-width="1.2" stroke-opacity="0.25" fill="none"/>
+        <path d="M 0 710 Q 300 700, 600 710 T 1400 710" stroke="#FAF4EB" stroke-width="1.2" stroke-opacity="0.2" fill="none"/>
+
+        <!-- Malul și Stânca Tradițională (Tuș Închis) -->
+        <path d="M 0 900 L 0 590 Q 220 580, 420 720 Q 280 840, 0 900 Z" fill="#2D2728" fill-opacity="0.88"/>
+
+        <!-- Casa / Pavilion Chinezesc (Arhitectură în Tuș) -->
+        <g transform="translate(180, 530)" fill="#1A1718">
+            <!-- Bază -->
+            <rect x="-35" y="45" width="70" height="8" />
+            <!-- Structură corp -->
+            <rect x="-24" y="22" width="48" height="23" />
+            <!-- Acoperiș Nivelul 1 cu curburi chinezești -->
+            <path d="M -50 22 Q 0 -2, 50 22 Q 0 10, -50 22 Z" />
+            <!-- Structură Nivelul 2 -->
+            <rect x="-15" y="2" width="30" height="20" />
+            <!-- Acoperiș Nivelul 2 -->
+            <path d="M -38 2 Q 0 -18, 38 2 Q 0 -8, -38 2 Z" />
+            <!-- Vârf / Ornament -->
+            <path d="M -3 -18 L 0 -30 L 3 -18 Z" />
+        </g>
+
+        <!-- Arbore Tradițional / Pin Chinezesc pe Mal -->
+        <g transform="translate(70, 580)" stroke="#1A1718" fill="none">
+            <path d="M 0 50 Q 30 10, 10 -40 T -15 -90" stroke-width="7" stroke-linecap="round"/>
+            <path d="M 10 -40 Q 40 -60, 55 -50" stroke-width="4" stroke-linecap="round"/>
+            <!-- Frunze de pin / Tuș sobru -->
+            <circle cx="-15" cy="-90" r="22" fill="#231C1D" stroke="none" fill-opacity="0.85"/>
+            <circle cx="15" cy="-75" r="18" fill="#231C1D" stroke="none" fill-opacity="0.85"/>
+            <circle cx="55" cy="-50" r="16" fill="#231C1D" stroke="none" fill-opacity="0.85"/>
+        </g>
+    </svg>
+
+    <!-- Structura Aplicației -->
+    <div class="app-container">
+        <header>
+            <h1>Dicționar Chinez - Român</h1>
+            <p class="subtitle">Vocabular și Traducere Tradițională</p>
+        </header>
+
+        <div class="controls">
+            <input type="text" id="search" class="search-box" placeholder="Caută caractere (Hanzi), Pinyin, Română sau Engleză..." disabled>
+        </div>
+
+        <div id="status-msg">Se încarcă baza de date...</div>
+
+        <div id="table-container" class="table-wrapper" style="display: none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Chineză</th>
+                        <th>Pinyin</th>
+                        <th>Română</th>
+                        <th>Engleză</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+
+            <div class="pagination">
+                <button id="btn-prev" class="btn" onclick="schimbaPagina(-1)">Anterioarele</button>
+                <span id="page-info">Pagina 1</span>
+                <button id="btn-next" class="btn" onclick="schimbaPagina(1)">Următoarele</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="source-badge">
+        Baza de date furnizată de CC-CEDICT
+    </div>
+
+    <!-- Script SQLite WASM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+
+    <script>
+        /* -------------------------------------------------------------
+           Logica Bazei de Date SQLite & Interfață
+           ------------------------------------------------------------- */
+        let db = null;
+        let numeTabela = "dictionar";
+        let paginaCurenta = 0;
+        const randuriPePagina = 50;
+        let textCautare = "";
+
+        const urlBDD = 'https://cdn.jsdelivr.net/gh/wdavidmnt/dictionar-chinez-roman@main/dictionar_bdd.db';
+
+        initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` }).then(SQL => {
+            fetch(urlBDD)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Eroare la conectarea cu baza de date. Status: " + response.status);
+                    }
+                    return response.arrayBuffer();
+                })
+                .then(buffer => {
+                    db = new SQL.Database(new Uint8Array(buffer));
+                    
+                    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';");
+                    if (tables.length > 0 && tables[0].values.length > 0) {
+                        numeTabela = tables[0].values[0][0];
+                    }
+
+                    document.getElementById('status-msg').style.display = 'none';
+                    document.getElementById('table-container').style.display = 'block';
+                    
+                    const searchInput = document.getElementById('search');
+                    searchInput.disabled = false;
+                    
+                    afiseazaTabel();
+                })
+                .catch(err => {
+                    const statusEl = document.getElementById('status-msg');
+                    statusEl.style.color = 'var(--vermilion-dark)';
+                    statusEl.innerText = "Eroare la încărcare: " + err.message;
+                });
+        });
+
+        function afiseazaTabel() {
+            if (!db) return;
+
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            const offset = paginaCurenta * randuriPePagina;
+            let query = `SELECT * FROM ${numeTabela}`;
+            let params = {};
+
+            if (textCautare !== "") {
+                query += " WHERE Simplificat LIKE :q OR Pinyin LIKE :q OR Engleza LIKE :q OR Romana LIKE :q";
+                params[':q'] = '%' + textCautare + '%';
+            }
+
+            query += ` LIMIT ${randuriPePagina} OFFSET ${offset}`;
+
+            try {
+                const stmt = db.prepare(query);
+                stmt.bind(params);
+
+                let areRezultate = false;
+                while (stmt.step()) {
+                    areRezultate = true;
+                    const row = stmt.getAsObject();
+                    
+                    const simp = row.Simplificat || row.simplificat || '';
+                    const trad = row.Traditional || row.traditional || '';
+                    const pin = row.Pinyin || row.pinyin || '';
+                    const eng = row.Engleza || row.engleza || '';
+                    const rom = row.Romana || row.romana || '<em style="color:#8C8081">Neadăugat</em>';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><span class="hanzi">${simp}</span> ${trad ? `<span class="traditional">(${trad})</span>` : ''}</td>
+                        <td><span class="pinyin">${pin}</span></td>
+                        <td><strong>${rom}</strong></td>
+                        <td style="font-size: 0.95rem; color: var(--text-secondary);">${eng}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+                stmt.free();
+
+                document.getElementById('page-info').innerText = `Pagina ${paginaCurenta + 1}`;
+                document.getElementById('btn-prev').disabled = (paginaCurenta === 0);
+                document.getElementById('btn-next').disabled = !areRezultate;
+            } catch (e) {
+                console.error("Eroare interogare SQLite:", e);
+            }
+        }
+
+        function schimbaPagina(directie) {
+            paginaCurenta += directie;
+            if (paginaCurenta < 0) paginaCurenta = 0;
+            afiseazaTabel();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.getElementById('search').addEventListener('input', function(e) {
+            textCautare = e.target.value.trim();
+            paginaCurenta = 0;
+            afiseazaTabel();
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dicționar Chinez - Român</title>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 20px; background-color: #f8fafc; color: #334155; }
         h1 { color: #0f172a; text-align: center; margin-bottom: 5px; }
